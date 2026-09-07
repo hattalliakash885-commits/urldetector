@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cyber Threat URL Detector</title>
+    <!-- Tailwind CSS for Modern UI -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome for Icons -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: { colors: { darkbg: '#020617', cardbg: '#0f172a' } }
+            }
+        }
+    </script>
+</head>
+<body class="bg-darkbg text-slate-200 font-sans min-h-screen flex flex-col items-center py-12 px-4">
+
+    <!-- Header -->
+    <div class="text-center mb-10 w-full max-w-3xl">
+        <div class="inline-block bg-slate-800 text-sky-400 px-4 py-1 rounded-full text-sm font-semibold mb-4 border border-sky-500/30">
+            <i class="fa-solid fa-cloud mr-1"></i> 100% Client-Side Scanner Live
+        </div>
+        <h1 class="text-4xl md:text-5xl font-bold text-white mb-3 tracking-tight">
+            Threat Intelligence <span class="text-sky-500">Scanner</span>
+        </h1>
+        <p class="text-slate-400 text-lg">Serverless Heuristic Analysis for Zero-Day Phishing</p>
+    </div>
+
+    <!-- Scanner Box -->
+    <div class="w-full max-w-3xl bg-cardbg p-8 rounded-2xl shadow-2xl border border-slate-800 relative overflow-hidden">
+        
+        <div class="mb-6 relative">
+            <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                <i class="fa-solid fa-link text-slate-500"></i>
+            </div>
+            <input type="text" id="urlInput" placeholder="https://suspicious-site.com/login" 
+                class="w-full bg-slate-900 text-white pl-12 pr-5 py-4 rounded-xl border border-slate-700 focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 text-lg transition-all">
+        </div>
+
+        <!-- Human Verification -->
+        <div class="bg-slate-900/50 border border-slate-700 p-4 rounded-xl flex items-center justify-between mb-6 transition-all" id="verifyBox">
+            <div class="flex items-center gap-3">
+                <input type="checkbox" id="humanCheck" class="w-5 h-5 rounded border-slate-600 text-sky-500 bg-slate-800 cursor-pointer" onclick="verifyHuman(this)">
+                <span class="text-slate-300 font-medium tracking-wide">I verify that I am human</span>
+            </div>
+            <i class="fa-solid fa-shield-halved text-slate-500 text-xl" id="verifyIcon"></i>
+        </div>
+
+        <button id="analyzeBtn" onclick="startAnalysis()" disabled
+            class="w-full bg-slate-800 text-slate-500 font-bold py-4 rounded-xl text-lg transition-all duration-300 cursor-not-allowed border border-slate-700 uppercase tracking-widest">
+            Awaiting Verification
+        </button>
+    </div>
+
+    <!-- Loader -->
+    <div id="loader" class="hidden mt-10 flex flex-col items-center">
+        <div class="w-12 h-12 border-4 border-slate-700 border-t-sky-500 rounded-full animate-spin mb-4"></div>
+        <p class="text-sky-400 font-medium tracking-wider text-sm uppercase">Analyzing URL Signatures...</p>
+    </div>
+
+    <!-- Results Area -->
+    <div id="resultsArea" class="hidden w-full max-w-3xl mt-8 space-y-4">
+        
+        <!-- Target Info -->
+        <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 flex items-center overflow-hidden shadow-lg">
+            <span class="bg-slate-800 text-slate-400 px-3 py-1 rounded text-sm mr-3 font-mono">TARGET</span>
+            <span id="targetUrlDisplay" class="text-slate-300 font-mono truncate"></span>
+        </div>
+
+        <!-- Score Card -->
+        <div id="verdictCard" class="p-8 rounded-xl text-center border shadow-lg flex flex-col items-center justify-center transition-all duration-500">
+            <div id="verdictIcon" class="text-5xl mb-4"></div>
+            <h2 id="verdictText" class="text-4xl font-black tracking-widest mb-2"></h2>
+            <p id="scoreText" class="text-slate-200 text-lg font-medium opacity-90"></p>
+        </div>
+
+        <!-- Details List -->
+        <div class="bg-cardbg rounded-xl p-6 border border-slate-800 shadow-lg">
+            <h3 class="text-sm font-bold text-slate-400 uppercase tracking-widest mb-4 border-b border-slate-800 pb-3">Heuristic Breakdown</h3>
+            <ul id="detailsList" class="space-y-3 font-mono text-sm"></ul>
+        </div>
+    </div>
+
+    <script>
+        let isHuman = false;
+
+        function verifyHuman(checkbox) {
+            const btn = document.getElementById('analyzeBtn');
+            const icon = document.getElementById('verifyIcon');
+            const box = document.getElementById('verifyBox');
+
+            if (checkbox.checked) {
+                isHuman = true;
+                icon.className = "fa-solid fa-check-circle text-green-500 text-xl";
+                box.classList.add('border-green-500/50', 'bg-green-900/10');
+                btn.disabled = false;
+                btn.innerText = "Scan Target URL";
+                btn.className = "w-full bg-sky-600 hover:bg-sky-500 text-white font-bold py-4 rounded-xl text-lg transition-all duration-300 shadow-[0_0_20px_rgba(14,165,233,0.3)] cursor-pointer uppercase tracking-widest";
+            } else {
+                isHuman = false;
+                icon.className = "fa-solid fa-shield-halved text-slate-500 text-xl";
+                box.classList.remove('border-green-500/50', 'bg-green-900/10');
+                btn.disabled = true;
+                btn.innerText = "Awaiting Verification";
+                btn.className = "w-full bg-slate-800 text-slate-500 font-bold py-4 rounded-xl text-lg transition-all duration-300 cursor-not-allowed border border-slate-700 uppercase tracking-widest";
+            }
+        }
+
+        async function startAnalysis() {
+            if (!isHuman) return;
+
+            let urlInput = document.getElementById('urlInput').value.trim();
+            if (!urlInput) {
+                alert("Please enter a URL to scan.");
+                return;
+            }
+
+            // Auto-prepend http if missing for parsing
+            if (!urlInput.startsWith('http://') && !urlInput.startsWith('https://')) {
+                urlInput = 'http://' + urlInput;
+            }
+
+            document.getElementById('resultsArea').classList.add('hidden');
+            document.getElementById('loader').classList.remove('hidden');
+            document.getElementById('targetUrlDisplay').textContent = urlInput; // Safe XSS prevention
+
+            try {
+                const reportData = await runHeuristics(urlInput);
+                displayResults(reportData);
+            } catch (err) {
+                alert(err.message || "An error occurred during analysis.");
+            } finally {
+                document.getElementById('loader').classList.add('hidden');
+            }
+        }
+
+        // ==========================================
+        // CLIENT-SIDE SCANNER LOGIC
+        // ==========================================
+        async function runHeuristics(rawUrl) {
+            let score = 0;
+            let report = [];
+            let parsedUrl;
+
+            try {
+                parsedUrl = new URL(rawUrl);
+            } catch (e) {
+                throw new Error("Invalid URL format.");
+            }
+
+            const domain = parsedUrl.hostname;
+
+            // 1. HTTPS Check
+            if (parsedUrl.protocol === "https:") {
+                report.push({ msg: "HTTPS Security Enabled", status: "safe" });
+            } else {
+                report.push({ msg: "Website is NOT using HTTPS (Data sent in plaintext)", status: "danger" });
+                score += 20;
+            }
+
+            // 2. Suspicious Keywords
+            const keywords = ["login", "verify", "secure", "bank", "update", "bonus", "gift", "crypto", "wallet", "password", "support", "account"];
+            const foundKw = keywords.filter(kw => rawUrl.toLowerCase().includes(kw));
+            if (foundKw.length > 0) {
+                report.push({ msg: `Suspicious Keywords Detected: ${foundKw.join(', ')}`, status: "danger" });
+                score += 25;
+            } else {
+                report.push({ msg: "No Suspicious Keywords Found", status: "safe" });
+            }
+
+            // 3. Direct IP Address Check
+            const ipRegex = /^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$/;
+            const isIp = ipRegex.test(domain);
+            if (isIp) {
+                report.push({ msg: "URL Uses Direct IP Address (Common in Malware/Phishing)", status: "danger" });
+                score += 25;
+            } else {
+                report.push({ msg: "Standard Domain Format", status: "safe" });
+            }
+
+            // 4. DNS Resolution Check via Cloudflare DoH API (Browser safe)
+            if (!isIp) {
+                try {
+                    const dnsRes = await fetch(`https://cloudflare-dns.com/dns-query?name=${domain}&type=A`, {
+                        headers: { 'Accept': 'application/dns-json' }
+                    });
+                    const dnsData = await dnsRes.json();
+                    
+                    if (dnsData.Status === 0 && dnsData.Answer && dnsData.Answer.length > 0) {
+                        report.push({ msg: "Domain Resolved to Public IP Address successfully", status: "safe" });
+                    } else {
+                        report.push({ msg: "Failed to Resolve Domain (Domain may be dead or fake)", status: "warning" });
+                        score += 20;
+                    }
+                } catch (e) {
+                    report.push({ msg: "Could not verify DNS records automatically", status: "warning" });
+                }
+            }
+
+            // 5. Typosquatting Check
+            const fakePatterns = ["g00gle", "paypa1", "faceb00k", "amaz0n", "micr0soft", "y0utube", "netflix-update"];
+            const foundFake = fakePatterns.find(p => domain.toLowerCase().includes(p));
+            if (foundFake) {
+                report.push({ msg: `Typosquatting/Fake Domain Detected (${foundFake})`, status: "danger" });
+                score += 35;
+            } else {
+                report.push({ msg: "No Known Typosquatting Patterns", status: "safe" });
+            }
+
+            // Final Assessment
+            let verdict, assessment;
+            if (score <= 20) { verdict = "SAFE"; assessment = "Low Risk"; }
+            else if (score <= 50) { verdict = "SUSPICIOUS"; assessment = "Medium Risk"; }
+            else { verdict = "DANGEROUS"; assessment = "High Risk"; }
+
+            return { score: Math.min(score, 100), verdict, assessment, details: report };
+        }
+
+        function displayResults(data) {
+            document.getElementById('resultsArea').classList.remove('hidden');
+            
+            const verdictCard = document.getElementById('verdictCard');
+            const verdictText = document.getElementById('verdictText');
+            const verdictIcon = document.getElementById('verdictIcon');
+            
+            if (data.verdict === "SAFE") {
+                verdictCard.className = "p-8 rounded-xl text-center shadow-lg border-2 border-green-500/50 bg-gradient-to-b from-green-900/20 to-slate-900 transition-all duration-500";
+                verdictIcon.innerHTML = '<i class="fa-solid fa-shield-check text-green-400 drop-shadow-[0_0_15px_rgba(74,222,128,0.5)]"></i>';
+                verdictText.className = "text-4xl font-black tracking-widest mb-2 text-green-400";
+            } else if (data.verdict === "SUSPICIOUS") {
+                verdictCard.className = "p-8 rounded-xl text-center shadow-lg border-2 border-yellow-500/50 bg-gradient-to-b from-yellow-900/20 to-slate-900 transition-all duration-500";
+                verdictIcon.innerHTML = '<i class="fa-solid fa-triangle-exclamation text-yellow-400 drop-shadow-[0_0_15px_rgba(250,204,21,0.5)]"></i>';
+                verdictText.className = "text-4xl font-black tracking-widest mb-2 text-yellow-400";
+            } else {
+                verdictCard.className = "p-8 rounded-xl text-center shadow-lg border-2 border-red-500/50 bg-gradient-to-b from-red-900/20 to-slate-900 transition-all duration-500";
+                verdictIcon.innerHTML = '<i class="fa-solid fa-radiation text-red-500 drop-shadow-[0_0_15px_rgba(239,68,68,0.5)]"></i>';
+                verdictText.className = "text-4xl font-black tracking-widest mb-2 text-red-500";
+            }
+
+            verdictText.textContent = data.verdict;
+            document.getElementById('scoreText').textContent = `THREAT SCORE: ${data.score}/100 | ${data.assessment}`;
+
+            const detailsList = document.getElementById('detailsList');
+            detailsList.innerHTML = '';
+            
+            data.details.forEach(item => {
+                const li = document.createElement('li');
+                let iconClass = '';
+                let textColor = '';
+                
+                if (item.status === "safe") {
+                    textColor = "text-slate-300";
+                    iconClass = "fa-solid fa-check text-green-500 w-6";
+                } else if (item.status === "warning") {
+                    textColor = "text-yellow-200";
+                    iconClass = "fa-solid fa-exclamation text-yellow-500 w-6";
+                } else {
+                    textColor = "text-red-300";
+                    iconClass = "fa-solid fa-xmark text-red-500 w-6";
+                }
+
+                li.className = `flex items-center p-3 rounded-lg bg-slate-900/80 border border-slate-800 ${textColor}`;
+                li.innerHTML = `<i class="${iconClass}"></i> <span class="ml-2"></span>`;
+                li.querySelector('span').textContent = item.msg; // XSS Safe
+                detailsList.appendChild(li);
+            });
+        }
+    </script>
+</body>
+</html>
